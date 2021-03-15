@@ -14,9 +14,11 @@ export class Tanks extends Scene {
         // one called "box" more than once in display() to draw multiple cubes.
         // Don't define more than one blueprint for the same thing here.
         this.shapes = {
-            'box': new Cube(),
-            'projectile': new Subdivision_Sphere(4)
+            'cube': new Cube(),
+            'sphere': new Subdivision_Sphere(4)
         };
+
+        this.projectiles = []
 
         // *** Materials: *** Define a shader, and then define materials that use
         // that shader.  Materials wrap a dictionary of "options" for the shader.
@@ -35,17 +37,18 @@ export class Tanks extends Scene {
     make_control_panel() {
         // make_control_panel(): Sets up a panel of interactive HTML elements, including
         // buttons with key bindings for affecting this scene, and live info readouts.
-        this.control_panel.innerHTML += "Dragonfly rotation angle: ";
+        //this.control_panel.innerHTML += "Dragonfly rotation angle: ";
         // The next line adds a live text readout of a data member of our Scene.
-        this.live_string(box => {
-            box.textContent = (this.hover ? 0 : (this.t % (2 * Math.PI)).toFixed(2)) + " radians"
-        });
-        this.new_line();
-        this.new_line();
+        //this.live_string(box => {
+        //    box.textContent = (this.hover ? 0 : (this.t % (2 * Math.PI)).toFixed(2)) + " radians"
+        //});
+        //this.new_line();
+        //this.new_line();
         // Add buttons so the user can actively toggle data members of our Scene:
-        this.key_triggered_button("Hover dragonfly in place", ["h"], function () {
-            this.hover ^= 1;
-        });
+        this.key_triggered_button("Fire projectile", ["p"], function () {
+            let startingPosition = Mat4.identity().times(Mat4.translation(0,1,0))
+            this.projectiles.push(new Projectile(startingPosition, 15, 1, 1, Math.PI/4, Math.PI/4))
+        })
         this.new_line();
         this.key_triggered_button("Swarm mode", ["m"], function () {
             this.swarm ^= 1;
@@ -75,16 +78,47 @@ export class Tanks extends Scene {
 
         // *** Lights: *** Values of vector or point lights.  They'll be consulted by
         // the shader when coloring shapes.  See Light's class definition for inputs.
-        const t = this.t = program_state.animation_time / 1000;
+        const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
         const angle = Math.sin(t);
         const light_position = Mat4.rotation(angle, 1, 0, 0).times(vec4(0, -1, 1, 0));
         program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 1000)];
 
-        let model_transform = Mat4.identity();
-        this.shapes.projectile.draw(context, program_state, model_transform, this.materials.plastic)
+        for(var i = 0; i < this.projectiles.length; i++){
+            let projectile = this.projectiles[i];
+            projectile.updatePosition(dt);
+            if(projectile.getPosition()[1][3] <= 0){
+                //handle explostion
+                this.projectiles.splice(i, 1);
+                i--;
+            } else {
+                this.shapes.sphere.draw(context, program_state, projectile.getPosition(), this.materials.plastic)
+            }
+        }
+    }
+        
+}
+
+class Projectile {
+    constructor(initial_position, initial_velocity, damage, radius, flat_angle, verticle_angle){
+        this.position = initial_position;
+        this.y_velocity = Math.sin(verticle_angle)*initial_velocity;
+        this.damage = damage;
+        this.radius = radius;
+        this.x_velocity = Math.cos(flat_angle)*initial_velocity;
+        this.z_velocity = Math.sin(flat_angle)*initial_velocity;
     }
 
-    fire_projectile(context, program_state, initial_position, initial_velocity, damage, radius, x_angle, y_angle, z_angle){
-        
-    }
+    updatePosition(dt){
+        let dx = dt*this.x_velocity;
+        let dy = dt*this.y_velocity;
+        let dz = dt*this.z_velocity;
+        this.position = this.position.times(Mat4.translation(dx, dy, dz));
+        this.y_velocity = this.y_velocity - (dt*9.81);
+     }
+
+     getPosition(){
+         return this.position;
+     }
+
+
 }
