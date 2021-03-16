@@ -14,8 +14,9 @@ export class Tanks extends Scene {
         // one called "box" more than once in display() to draw multiple cubes.
         // Don't define more than one blueprint for the same thing here.
         this.shapes = {
-            'box': new Cube(),
-            'projectile': new Subdivision_Sphere(4)
+            'cube': new Cube(),
+            'sphere': new Subdivision_Sphere(4),
+             'torus': new defs.Torus(15, 15)
         };
 
         // *** Materials: *** Define a shader, and then define materials that use
@@ -30,6 +31,12 @@ export class Tanks extends Scene {
             metal: new Material(phong,
                 {ambient: .2, diffusivity: .8, specularity: .8, color: color(.9, .5, .9, 1)})
         };
+
+        this.tankX = 0;
+        this.tankY = 0;
+        this.turretAngle = 0;
+        this.barrelAngle = Math.PI/3;
+        
     }
 
     make_control_panel() {
@@ -43,18 +50,32 @@ export class Tanks extends Scene {
         this.new_line();
         this.new_line();
         // Add buttons so the user can actively toggle data members of our Scene:
-        this.key_triggered_button("Hover dragonfly in place", ["h"], function () {
-            this.hover ^= 1;
+        this.key_triggered_button("north", ["i"], () => { this.tankX++ });
+        this.key_triggered_button("south", ["k"], () => {this.tankX--});
+        this.key_triggered_button("east", ["l"], () => {this.tankY--});
+        this.key_triggered_button("west", ["j"], () => {this.tankY++});
+
+
+        this.key_triggered_button("turrret", ["o"], () => { this.turretAngle+=(Math.PI/180)});
+        this.key_triggered_button("turret", ["p"], () => {this.turretAngle-=(Math.PI/180)});
+
+        this.key_triggered_button("barrel up", ["u"], () => { 
+             if (!(this.barrelAngle < 0)){
+                 this.barrelAngle-=(Math.PI/360);
+             }
         });
-        this.new_line();
-        this.key_triggered_button("Swarm mode", ["m"], function () {
-            this.swarm ^= 1;
-        });
+        this.key_triggered_button("barrel down", ["y"], () => {
+             if (!(this.barrelAngle > Math.PI/2)){
+                 this.barrelAngle+=(Math.PI/360);
+             }
+       });
+
+
     }
 
     display(context, program_state) {
         // display():  Called once per frame of animation.  We'll isolate out
-        // the code that actually draws things into Transforms_Sandbox, a
+        // the code that actually draws things into Transfolljrms_Sandbox, a
         // subclass of this Scene.  Here, the base class's display only does
         // some initial setup.
 
@@ -81,7 +102,28 @@ export class Tanks extends Scene {
         program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 1000)];
 
         let model_transform = Mat4.identity();
-        this.shapes.projectile.draw(context, program_state, model_transform, this.materials.plastic)
+        //this.shapes.sphere.draw(context, program_state, model_transform, this.materials.plastic)
+
+        model_transform = Mat4.identity();        
+        let tankSize = Mat4.scale(2, 2, 1); 
+        let turretSize = Mat4.scale(1.4/2, 1.4/2, 1.4); 
+        let barrelSize = Mat4.scale(.2/1.4, .2/1.4, 1.4/1.4); 
+        let tankOffset = Mat4.translation(this.tankX/2, this.tankY/2, 0); //relaative to tankSize
+        let turretOffset = Mat4.translation(0, 0, 1/1.4); //relative to turretSize
+        let barrelOffset = Mat4.translation(0,0,2/(1.4*1.4)); //relaative to barrelSize
+        let turretRotation = Mat4.rotation(this.turretAngle, 0, 0, 1); 
+        let barrelRotation = Mat4.rotation(this.barrelAngle, 0, 1, 0);
+
+        let tankFinal = model_transform.times(tankSize).times(tankOffset);
+        let turretFinal = tankFinal.times(turretRotation).times(turretSize).times(turretOffset);
+        let barrelFinal = turretFinal.times(barrelRotation).times(barrelSize).times(barrelOffset);
+
+
+        this.shapes.sphere.draw(context, program_state, turretFinal, this.materials.plastic)
+        this.shapes.cube.draw(context, program_state, tankFinal, this.materials.plastic);
+        this.shapes.cube.draw(context, program_state, barrelFinal, this.materials.plastic)
+
+
     }
 
     fire_projectile(context, program_state, initial_position, initial_velocity, damage, radius, x_angle, y_angle, z_angle){
