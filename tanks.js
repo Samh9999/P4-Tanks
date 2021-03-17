@@ -52,8 +52,10 @@ export class Tanks extends Scene {
         //this.new_line();F
         // Add buttons so the user can actively toggle data members of our Scene:
         this.key_triggered_button("Fire projectile", ["x"], function () {
-            let startingPosition = Mat4.identity().times(Mat4.translation(this.tankX,this.tankY,0))
-            this.projectiles.push(new Projectile(startingPosition, 15, 1, 1, this.turretAngle, this.barrelAngle))
+
+            //console.log("X, y x:" +  this.barrelFinal[0][3] + "," + this.barrelFinal[1][3] + "," + this.barrelFinal[2][3]);
+            //console.log("x, y:" + this.tankX + "," + this.tankY);
+            this.projectiles.push(new Projectile(this.tankX, this.tankY, 15, 1, 1, this.turretAngle, this.barrelAngle))
         })
         this.key_triggered_button("north", ["i"], () => { this.tankX++ });
         this.key_triggered_button("south", ["k"], () => {this.tankX--});
@@ -61,8 +63,8 @@ export class Tanks extends Scene {
         this.key_triggered_button("west", ["j"], () => {this.tankY++});
 
 
-        this.key_triggered_button("turrret", ["q"], () => { this.turretAngle+=(Math.PI/180)});
-        this.key_triggered_button("turret", ["w"], () => {this.turretAngle-=(Math.PI/180)});
+        this.key_triggered_button("turrret", ["c"], () => { this.turretAngle+=(Math.PI/180)});
+        this.key_triggered_button("turret", ["v"], () => {this.turretAngle-=(Math.PI/180)});
 
         this.key_triggered_button("barrel up", ["u"], () => { 
              if (!(this.barrelAngle < 0)){
@@ -99,17 +101,19 @@ export class Tanks extends Scene {
         program_state.projection_transform = Mat4.perspective(
             Math.PI / 4, context.width / context.height, 1, 100);
 
+        let model_transform = Mat4.identity();
+
         // *** Lights: *** Values of vector or point lights.  They'll be consulted by
         // the shader when coloring shapes.  See Light's class definition for inputs.
         const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
         const angle = Math.sin(t);
-        const light_position = Mat4.rotation(angle, 1, 0, 0).times(vec4(0, -1, 1, 0));
+        const light_position = Mat4.identity().times(vec4(0, -1, 1, 0));
         program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 1000)];
 
         for(var i = 0; i < this.projectiles.length; i++){
             let projectile = this.projectiles[i];
             projectile.updatePosition(dt);
-            if(projectile.getPosition()[1][3] <= 0){
+            if(projectile.getPosition()[2][3] <= 0){
                 //handle explostion
                 this.projectiles.splice(i, 1);
                 i--;
@@ -118,7 +122,6 @@ export class Tanks extends Scene {
             }
         }
 
-        let model_transform = Mat4.identity();
         //this.shapes.sphere.draw(context, program_state, model_transform, this.materials.plastic)
 
         model_transform = Mat4.identity();        
@@ -146,21 +149,32 @@ export class Tanks extends Scene {
 }
 
 class Projectile {
-    constructor(initial_position, initial_velocity, damage, radius, flat_angle, verticle_angle){
-        this.position = initial_position;
-        this.y_velocity = Math.sin(verticle_angle)*initial_velocity;
+    constructor(tankX, tankY, initial_velocity, damage, radius, flat_angle, verticle_angle){
+        console.log(verticle_angle)
+        verticle_angle = (Math.PI/2) - verticle_angle;
+        console.log(verticle_angle)
+        this.position = Mat4.identity().times(Mat4.scale(0.5, 0.5, 0.5)).
+            times(Mat4.translation(tankX*2, tankY*2, 2.2)).
+            times(Mat4.translation(Math.cos(verticle_angle)*Math.cos(flat_angle)*4.8, Math.cos(verticle_angle)*Math.sin(flat_angle)*4.8, Math.sin(verticle_angle)*4.8));
+        this.z_velocity = Math.sin(verticle_angle)*initial_velocity;
         this.damage = damage;
         this.radius = radius;
-        this.x_velocity = Math.cos(flat_angle)*initial_velocity;
-        this.z_velocity = Math.sin(flat_angle)*initial_velocity;
+        this.x_velocity = Math.cos(verticle_angle)*Math.cos(flat_angle)*initial_velocity;
+        this.y_velocity = Math.cos(verticle_angle)*Math.sin(flat_angle)*initial_velocity;
+        console.log(Math.cos(verticle_angle))
+        console.log(Math.sin(verticle_angle))
+        console.log("X_V: " + this.x_velocity)
+        console.log("Y_V: " + this.y_velocity)
+        console.log("Z_V: " + this.z_velocity)
+        
     }
 
     updatePosition(dt){
-        let dx = dt*this.x_velocity;
-        let dy = dt*this.y_velocity;
-        let dz = dt*this.z_velocity;
+        let dx = 2*dt*this.x_velocity;
+        let dy = 2*dt*this.y_velocity;
+        let dz = 2*dt*this.z_velocity;
         this.position = this.position.times(Mat4.translation(dx, dy, dz));
-        this.y_velocity = this.y_velocity - (dt*9.81);
+        this.z_velocity = this.z_velocity - (dt*9.81);
      }
 
      getPosition(){
