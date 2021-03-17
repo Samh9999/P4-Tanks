@@ -49,11 +49,11 @@ export class Tanks extends Scene {
         //    box.textContent = (this.hover ? 0 : (this.t % (2 * Math.PI)).toFixed(2)) + " radians"
         //});
         //this.new_line();
-        //this.new_line();
+        //this.new_line();F
         // Add buttons so the user can actively toggle data members of our Scene:
-        this.key_triggered_button("Fire projectile", ["p"], function () {
-            let startingPosition = Mat4.identity().times(Mat4.translation(0,1,0))
-            this.projectiles.push(new Projectile(startingPosition, 15, 1, 1, Math.PI/4, Math.PI/4))
+        this.key_triggered_button("Fire projectile", ["x"], function () {
+            let startingPosition = Mat4.identity().times(Mat4.translation(this.tankX,this.tankY,0))
+            this.projectiles.push(new Projectile(startingPosition, 15, 1, 1, this.turretAngle, this.barrelAngle))
         })
         this.key_triggered_button("north", ["i"], () => { this.tankX++ });
         this.key_triggered_button("south", ["k"], () => {this.tankX--});
@@ -61,8 +61,8 @@ export class Tanks extends Scene {
         this.key_triggered_button("west", ["j"], () => {this.tankY++});
 
 
-        this.key_triggered_button("turrret", ["o"], () => { this.turretAngle+=(Math.PI/180)});
-        this.key_triggered_button("turret", ["p"], () => {this.turretAngle-=(Math.PI/180)});
+        this.key_triggered_button("turrret", ["q"], () => { this.turretAngle+=(Math.PI/180)});
+        this.key_triggered_button("turret", ["w"], () => {this.turretAngle-=(Math.PI/180)});
 
         this.key_triggered_button("barrel up", ["u"], () => { 
              if (!(this.barrelAngle < 0)){
