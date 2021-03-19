@@ -111,7 +111,7 @@ export class Tanks extends Scene {
 
             //console.log("X, y x:" +  this.barrelFinal[0][3] + "," + this.barrelFinal[1][3] + "," + this.barrelFinal[2][3]);
             //console.log("x, y:" + this.tankX + "," + this.tankY);
-            this.projectiles.push(new Projectile(this.tanks[this.currentTank].tankX, this.tanks[this.currentTank].tankY, this.tanks[this.currentTank].power, this.tanks[this.currentTank].projectileType, this.tanks[this.currentTank].turretAngle, this.tanks[this.currentTank].barrelAngle));
+            this.projectiles.push(new Projectile(this.currentTank,this.tanks[this.currentTank].tankX, this.tanks[this.currentTank].tankY, this.tanks[this.currentTank].power, this.tanks[this.currentTank].projectileType, this.tanks[this.currentTank].turretAngle, this.tanks[this.currentTank].barrelAngle));
             this.currentTank++;
             if(this.currentTank == this.tanks.length){
                 this.currentTank = 0;
@@ -222,12 +222,17 @@ export class Tanks extends Scene {
 
 
         for(var i = 0; i < this.projectiles.length; i++){
+            console.log(this.projectiles);
+            console.log(i);
             let projectile = this.projectiles[i];
             projectile.updatePosition(dt);
-            if(projectile.position[2][3] <= -2){
+            let z = projectile.position[2][3];
+            let exploded = false;
+            if(projectile.position[2][3] <= -2) {
                 let x = projectile.position[0][3];
                 let y = projectile.position[1][3];
-                this.explosions.push(new Explosion(x, y, projectile.radius, 0.05, projectile.color));
+                exploded = true;
+                this.explosions.push(new Explosion(x, y, -2, projectile.radius, 0.05, projectile.color));
                 for(var j = 0; j < this.tanks.length; j++){
                     let dx = x - this.tanks[j].tankX;
                     let dy = y - this.tanks[j].tankY;
@@ -243,7 +248,39 @@ export class Tanks extends Scene {
                 }
                 this.projectiles.splice(i, 1);
                 i--;
-            } else {
+            } else if (z <= 2 && exploded === false){
+                let x = projectile.position[0][3];
+                let y = projectile.position[1][3];
+                for(var j = 0; j < this.tanks.length; j++){
+                    if (projectile.tankFiredFrom === j && projectile.timeStepsSincxeCreation < 5){
+                        continue;
+                    }
+                    let dx = Math.abs(x - this.tanks[j].tankX);
+                    let dy = Math.abs(y - this.tanks[j].tankY);
+                    console.log(dx)
+                    console.log(dy)
+                    let distance = Math.sqrt((dx*dx)+(dy*dy));
+                    if (z <= 2 && distance <= 2) {
+                        console.log("yo");
+                        exploded = true;
+                    } else if (z <= 0 && dx < 2 && dy < 2){
+                        console.log("yoyo");
+                        exploded = true;
+                    }
+                    if (exploded === true){
+                        this.explosions.push(new Explosion(x, y, z, projectile.radius, 0.05, projectile.color));
+                        this.projectiles.splice(i, 1);
+                        //i--;
+                        this.tanks[j].health -= projectile.damage;
+                    }
+                    //console.log(this.tanks[j])
+                    //console.log("pxy: " + x + "," + y);
+                    //console.log("txy: " + this.tanks[j].tankX + "," + this.tanks[j].tankY)
+                    //console.log("d:" + distance)
+                    //console.log(projectile.radius)
+                }
+            }
+            if (exploded === false) {
                 this.shapes.sphere.draw(context, program_state, projectile.position, this.materials.projectile.override({color:projectile.color}))
             }
         }
@@ -256,7 +293,7 @@ export class Tanks extends Scene {
             explosion.growRadius(dt)
             let explosionMatrix = Mat4.identity().times(
                 Mat4.scale(explosion.radius, explosion.radius, explosion.radius)).times(
-                Mat4.translation(explosion.x/explosion.radius, explosion.y/explosion.radius, -2/explosion.radius));
+                Mat4.translation(explosion.x/explosion.radius, explosion.y/explosion.radius, explosion.z/explosion.radius));
             this.shapes.sphere.draw(context, program_state, explosionMatrix, this.materials.explosion.override({color:explosion.color}));
             explosion.timeLeft = explosion.timeLeft - dt;
             if(explosion.timeLeft <= 0){
@@ -301,8 +338,10 @@ export class Tanks extends Scene {
 }
 
 class Projectile {
-    constructor(tankX, tankY, initial_velocity, projectileType, flat_angle, verticle_angle){
+    constructor(tankFiredFrom,tankX, tankY, initial_velocity, projectileType, flat_angle, verticle_angle){
         console.log(verticle_angle)
+        this.tankFiredFrom = tankFiredFrom;
+        this.timeStepsSinceCreation = 0;
         verticle_angle = (Math.PI/2) - verticle_angle;
         console.log(verticle_angle)
         this.position = Mat4.identity().times(Mat4.scale(0.5, 0.5, 0.5)).
@@ -340,6 +379,7 @@ class Projectile {
         let dz = 2*dt*this.z_velocity;
         this.position = this.position.times(Mat4.translation(dx, dy, dz));
         this.z_velocity = this.z_velocity - (dt*9.81);
+        this.timeStepsSinceCreation++;
      }
 
 
@@ -359,9 +399,10 @@ class Tank {
 }
 
 class Explosion {
-    constructor(x, y, finalRadius, time, color){
+    constructor(x, y, z, finalRadius, time, color){
         this.x = x;
         this.y = y;
+        this.z = z;
         this.radius = 0.5;
         this.growthRate = finalRadius/time;
         this.timeLeft = time;
