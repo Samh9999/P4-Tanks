@@ -2,7 +2,7 @@ import {defs, tiny} from './examples/common.js';
 
 // Pull these names into this module's scope for convenience:
 const {vec3, vec4, color, hex_color, Mat4, Light, Shape, Material, Shader, Texture, Scene} = tiny;
-const {Triangle, Square, Tetrahedron, Windmill, Cube, Subdivision_Sphere} = defs;
+const {Triangle, Square, Tetrahedron, Windmill, Cube, Subdivision_Sphere, Textured_Phong} = defs;
 
 export class Tanks extends Scene {
     constructor() {                  // constructor(): Scenes begin by populating initial values like the Shapes and Materials they'll need.
@@ -18,10 +18,7 @@ export class Tanks extends Scene {
             'sphere': new Subdivision_Sphere(4),
         };
 
-        this.projectiles = [];
-        this.tanks = [new Tank(0, 0, 0, Math.PI/3), new Tank(5, 5, 0, Math.PI/3)];
-        this.currentTank = 0;
-        this.explosions = [];
+
 
         // *** Materials: *** Define a shader, and then define materials that use
         // that shader.  Materials wrap a dictionary of "options" for the shader.
@@ -30,15 +27,37 @@ export class Tanks extends Scene {
         // appearance of particular materials can be tweaked via these numbers.
         const phong = new defs.Phong_Shader();
         this.materials = {
-            plastic: new Material(phong,
-                {ambient: .2, diffusivity: .8, specularity: .5, color: color(.9, .5, .9, 1)}),
-            metal: new Material(phong,
-                {ambient: .2, diffusivity: .8, specularity: .8, color: color(.9, .5, .9, 1)}),
+            projectile: new Material(phong,
+                {ambient: .2, diffusivity: .8, specularity: .5}),
+            tank_green: new Material(new Textured_Phong(),
+                {ambient: .3, diffusivity: .8, specularity: .8, color: hex_color("#006326"),
+                texture: new Texture("assets/camo_green.jpg", "LINEAR_MIPMAP_LINEAR")}),
+            tank_blue: new Material(new Textured_Phong(),
+                {ambient: .3, diffusivity: .8, specularity: .8, color: hex_color("#005a7d"),
+                texture: new Texture("assets/camo_blue.jpg", "LINEAR_MIPMAP_LINEAR")}),
             explosion: new Material(phong,
-                {ambient: 50, specularity: 50}),
+                {ambient: 1, specularity: 10, diffusivity: 0}),
             ground: new Material(phong,
-                 {ambient: 0.2, diffusivity: 1, specularity: 0, color: hex_color("#fff09c")})
+                 {ambient: 0.2, diffusivity: 1, specularity: 0, 
+                 color: hex_color("#fff09c"), //color: hex_color("#ffffff"),
+                 //texture: new Texture("assets/text.png", "LINEAR_MIPMAP_LINEAR")
+                 }),
+            sky: new Material(new Textured_Phong(),
+                 {ambient: 1, diffusivity: 1, specularity: 0, 
+                 color: hex_color("#000000"),
+                 texture: new Texture("assets/sky.jpg", "LINEAR_MIPMAP_LINEAR")
+                 }),
+            backSky: new Material(new Textured_Phong(),
+                 {ambient: 1, diffusivity: 1, specularity: 0, 
+                 color: hex_color("#000000"),
+                 texture: new Texture("assets/backSky.jpg", "LINEAR_MIPMAP_LINEAR")
+                 })
         };
+
+        this.projectiles = [];
+        this.tanks = [new Tank(-10, 20, -Math.PI/2, Math.PI/3, this.materials.tank_green), new Tank(-10, -20, Math.PI/2, Math.PI/3, this.materials.tank_blue)];
+        this.currentTank = 0;
+        this.explosions = [];
 
         //this.tankX = 0;
         //this.tankY = 0;
@@ -100,12 +119,31 @@ export class Tanks extends Scene {
         })
         this.new_line()
         this.key_triggered_button("north", ["i"], () => { 
-            //this.tankX++ 
-            this.tanks[this.currentTank].tankX++;
+            if(this.tanks[this.currentTank].tankX < 13){
+                this.tanks[this.currentTank].tankX++;
+                console.log(this.tanks[this.currentTank].tankX + "," + this.tanks[this.currentTank].tankY);
+            }
         });
-        this.key_triggered_button("south", ["k"], () => {this.tanks[this.currentTank].tankX--});
-        this.key_triggered_button("east", ["l"], () => {this.tanks[this.currentTank].tankY--});
-        this.key_triggered_button("west", ["j"], () => {this.tanks[this.currentTank].tankY++});
+        this.key_triggered_button("south", ["k"], () => {
+            if(this.tanks[this.currentTank].tankX > -33){
+                this.tanks[this.currentTank].tankX--;
+                console.log(this.tanks[this.currentTank].tankX + "," + this.tanks[this.currentTank].tankY);;
+                                
+            }
+        });
+        this.key_triggered_button("east", ["l"], () => {
+            if(this.tanks[this.currentTank].tankY > -35){
+                this.tanks[this.currentTank].tankY--;
+                console.log(this.tanks[this.currentTank].tankX + "," + this.tanks[this.currentTank].tankY);
+
+            }
+        });
+        this.key_triggered_button("west", ["j"], () => {
+            if(this.tanks[this.currentTank].tankY < 35){
+                this.tanks[this.currentTank].tankY++;
+                console.log(this.tanks[this.currentTank].tankX + "," + this.tanks[this.currentTank].tankY);
+            }
+        });
 
         this.new_line()
         this.key_triggered_button("turrret", ["c"], () => { this.tanks[this.currentTank].turretAngle+=(Math.PI/180)});
@@ -139,7 +177,6 @@ export class Tanks extends Scene {
 
     }
 
-
     display(context, program_state) {
         // display():  Called once per frame of animation.  We'll isolate out
         // the code that actually draws things into Transfolljrms_Sandbox, a
@@ -156,7 +193,7 @@ export class Tanks extends Scene {
             // treated when projecting 3D points onto a plane.  The Mat4 functions perspective() and
             // orthographic() automatically generate valid matrices for one.  The input arguments of
             // perspective() are field of view, aspect ratio, and distances to the near plane and far plane.
-            program_state.set_camera(Mat4.translation(0, 0, -100));
+            program_state.set_camera(Mat4.look_at(vec3(-65, 0, 30), vec3(0, 0, 0), vec3(1, 0, 0)));
         }
         program_state.projection_transform = Mat4.perspective(
             Math.PI / 4, context.width / context.height, 1, 100);
@@ -167,13 +204,27 @@ export class Tanks extends Scene {
         // the shader when coloring shapes.  See Light's class definition for inputs.
         const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
         const angle = Math.sin(t);
-        const light_position = Mat4.identity().times(vec4(0, -1, 1, 0));
+        const light_position = Mat4.identity().times(vec4(0, 0, 30, 0));
         program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 1000)];
+
+        let groundMatrix = Mat4.identity().times(Mat4.scale(50, 40, 1)).times(
+            Mat4.translation(0, 0, -3));
+        this.shapes.cube.draw(context, program_state, groundMatrix, this.materials.ground);
+        let backWallMatrix = Mat4.identity().times(Mat4.scale(1, 40, 40)).times(
+            Mat4.translation(20.5, 0, 0.9));
+        this.shapes.cube.draw(context, program_state, backWallMatrix, this.materials.backSky);
+        let rightWall = Mat4.identity().times(Mat4.scale(50, 1, 40)).times(
+            Mat4.translation(0, 40.5, 0.9));
+        this.shapes.cube.draw(context, program_state, rightWall, this.materials.sky);
+        let leftWall = Mat4.identity().times(Mat4.scale(50, 1, 40)).times(
+            Mat4.translation(0, -40.5, 0.9));
+        this.shapes.cube.draw(context, program_state, leftWall, this.materials.sky);
+
 
         for(var i = 0; i < this.projectiles.length; i++){
             let projectile = this.projectiles[i];
             projectile.updatePosition(dt);
-            if(projectile.position[2][3] <= 0){
+            if(projectile.position[2][3] <= -2){
                 let x = projectile.position[0][3];
                 let y = projectile.position[1][3];
                 this.explosions.push(new Explosion(x, y, projectile.radius, 0.05, projectile.color));
@@ -181,11 +232,11 @@ export class Tanks extends Scene {
                     let dx = x - this.tanks[j].tankX;
                     let dy = y - this.tanks[j].tankY;
                     let distance = Math.sqrt((dx*dx)+(dy*dy));
-                    console.log(this.tanks[j])
-                    console.log("pxy: " + x + "," + y);
-                    console.log("txy: " + this.tanks[j].tankX + "," + this.tanks[j].tankY)
-                    console.log("d:" + distance)
-                    console.log(projectile.radius)
+                    //console.log(this.tanks[j])
+                    //console.log("pxy: " + x + "," + y);
+                    //console.log("txy: " + this.tanks[j].tankX + "," + this.tanks[j].tankY)
+                    //console.log("d:" + distance)
+                    //console.log(projectile.radius)
                     if(distance < (projectile.radius+2)){
                         this.tanks[j].health -= projectile.damage;
                     }
@@ -193,7 +244,7 @@ export class Tanks extends Scene {
                 this.projectiles.splice(i, 1);
                 i--;
             } else {
-                this.shapes.sphere.draw(context, program_state, projectile.position, this.materials.plastic.override({color:projectile.color}))
+                this.shapes.sphere.draw(context, program_state, projectile.position, this.materials.projectile.override({color:projectile.color}))
             }
         }
         
@@ -205,7 +256,7 @@ export class Tanks extends Scene {
             explosion.growRadius(dt)
             let explosionMatrix = Mat4.identity().times(
                 Mat4.scale(explosion.radius, explosion.radius, explosion.radius)).times(
-                Mat4.translation(explosion.x/explosion.radius, explosion.y/explosion.radius, 0));
+                Mat4.translation(explosion.x/explosion.radius, explosion.y/explosion.radius, -2/explosion.radius));
             this.shapes.sphere.draw(context, program_state, explosionMatrix, this.materials.explosion.override({color:explosion.color}));
             explosion.timeLeft = explosion.timeLeft - dt;
             if(explosion.timeLeft <= 0){
@@ -232,21 +283,21 @@ export class Tanks extends Scene {
             let barrelFinal = turretFinal.times(barrelRotation).times(barrelSize).times(barrelOffset);
 
 
-            this.shapes.sphere.draw(context, program_state, turretFinal, this.materials.plastic)
-            this.shapes.cube.draw(context, program_state, tankFinal, this.materials.plastic);
-            this.shapes.cube.draw(context, program_state, barrelFinal, this.materials.plastic);
-//        let tankMatrices = this.tanks[this.currentTank].getTankMatrices()
-        //this.shapes.sphere.draw(context, program_state, tankMatrices[0], this.materials.plastic)
-        //this.shapes.cube.draw(context, program_state, tankMatrices[1], this.materials.plastic);
-        //this.shapes.cube.draw(context, program_state, tankMatrices[2], this.materials.plastic)
+            this.shapes.sphere.draw(context, program_state, turretFinal, this.tanks[i].material);
+            this.shapes.cube.draw(context, program_state, tankFinal, this.tanks[i].material);
+            this.shapes.cube.draw(context, program_state, barrelFinal, this.tanks[i].material);
         }
 
-        let groundMatrix = Mat4.identity().times(Mat4.scale(100, 100, 1)).times(
-            Mat4.translation(0, 0, -3));
-        this.shapes.cube.draw(context, program_state, groundMatrix, this.materials.ground);
+        for(var i = 0; i < this.tanks.length; i++){
+            if(this.tanks[i].health <= 0){
+                this.projectiles = [];
+                this.tanks = [new Tank(-10, 20, -Math.PI/2, Math.PI/3, this.materials.tank_green), new Tank(-10, -20, Math.PI/2, Math.PI/3, this.materials.tank_blue)];
+                this.currentTank = 0;
+                this.explosions = [];
+            }
+        }
 
-    }
-        
+    }       
 }
 
 class Projectile {
@@ -270,7 +321,7 @@ class Projectile {
         if(projectileType == 1) {
             this.radius = 1;
             this.damage = 15;
-            this.color = hex_color("#FFA500");
+            this.color = hex_color("#ff9f05");
         } else if(projectileType == 2) {
             this.radius = 2;
             this.damage = 10;
@@ -295,7 +346,7 @@ class Projectile {
 }
 
 class Tank {
-    constructor(tankX, tankY, turretAngle, barrelAngle){
+    constructor(tankX, tankY, turretAngle, barrelAngle, material){
         this.tankX = tankX;
         this.tankY = tankY;
         this.turretAngle = turretAngle;
@@ -303,6 +354,7 @@ class Tank {
         this.projectileType = 0;
         this.power = 15;
         this.health = 100;
+        this.material = material;
     }
 }
 
