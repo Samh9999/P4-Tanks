@@ -68,6 +68,9 @@ export class Tanks extends Scene {
         this.currentTank = 0;
 
         this.explosions = [];
+        this.tankView = Mat4.look_at(vec3(-65, 0, 30), vec3(0, 0, 0), vec3(1, 0, 0));
+        this.default = Mat4.look_at(vec3(-65, 0, 30), vec3(0, 0, 0), vec3(1, 0, 0));
+        this.inTankView = false;
 
         //this.tankX = 0;
         //this.tankY = 0;
@@ -189,6 +192,11 @@ export class Tanks extends Scene {
        });
        this.key_triggered_button("Power Up", ["+"], () => {this.tanks[this.currentTank].power++});
 
+       this.new_line();
+       this.key_triggered_button("Tank View", ["p"], () => {
+           this.inTankView = !this.inTankView;
+       });
+
     }
 
     display(context, program_state) {
@@ -207,8 +215,19 @@ export class Tanks extends Scene {
             // treated when projecting 3D points onto a plane.  The Mat4 functions perspective() and
             // orthographic() automatically generate valid matrices for one.  The input arguments of
             // perspective() are field of view, aspect ratio, and distances to the near plane and far plane.
-            program_state.set_camera(Mat4.look_at(vec3(-65, 0, 30), vec3(0, 0, 0), vec3(1, 0, 0)));
         }
+
+        let tank = this.tanks[this.currentTank];
+        let dy = Math.sin(tank.turretAngle);
+        let dx = Math.cos(tank.turretAngle);
+        this.tankView = Mat4.look_at(vec3(tank.tankX - (10*dx), tank.tankY - (10*dy), 4), vec3(tank.tankX, tank.tankY, 0), vec3(0, 0, 1))
+
+        if (this.inTankView){
+            program_state.set_camera(this.tankView);
+        } else {
+            program_state.set_camera(this.default);
+        }
+
         program_state.projection_transform = Mat4.perspective(
             Math.PI / 4, context.width / context.height, 1, 100);
 
@@ -236,7 +255,6 @@ export class Tanks extends Scene {
         let barrier = Mat4.identity().times(Mat4.scale(80,1,2));
         this.shapes.cube.draw(context, program_state, barrier, this.materials.barrier)
 
-
         for(var i = 0; i < this.projectiles.length; i++){
             //console.log(this.projectiles);
             //console.log(i);
@@ -263,6 +281,7 @@ export class Tanks extends Scene {
                     //console.log(projectile.radius)
                     if(distance < (projectile.radius+2)){
                         this.tanks[j].health -= projectile.damage;
+                        this.tanks[j].timeStepsSinceLastHit = 0;
                     }
                 }
                 this.projectiles.splice(i, 1);
@@ -294,6 +313,7 @@ export class Tanks extends Scene {
                         this.projectiles.splice(i, 1);
                         //i--;
                         this.tanks[j].health -= projectile.damage;
+                        this.tanks[j].timeStepsSinceLastHit = 0;
                     }
                     //console.log(this.tanks[j])
                     //console.log("pxy: " + x + "," + y);
@@ -342,9 +362,16 @@ export class Tanks extends Scene {
             let barrelFinal = turretFinal.times(barrelRotation).times(barrelSize).times(barrelOffset);
 
 
-            this.shapes.sphere.draw(context, program_state, turretFinal, this.tanks[i].material);
-            this.shapes.cube.draw(context, program_state, tankFinal, this.tanks[i].material);
-            this.shapes.cube.draw(context, program_state, barrelFinal, this.tanks[i].material);
+            if (this.tanks[i].timeStepsSinceLastHit > 10) {
+                this.shapes.sphere.draw(context, program_state, turretFinal, this.tanks[i].material);
+                this.shapes.cube.draw(context, program_state, tankFinal, this.tanks[i].material);
+                this.shapes.cube.draw(context, program_state, barrelFinal, this.tanks[i].material);
+            } else {
+                this.shapes.sphere.draw(context, program_state, turretFinal, this.tanks[i].material.override(hex_color("#ff0000")));
+                this.shapes.cube.draw(context, program_state, tankFinal, this.tanks[i].material.override(hex_color("#ff0000")));
+                this.shapes.cube.draw(context, program_state, barrelFinal, this.tanks[i].material.override(hex_color("#ff0000")));
+            }
+            this.tanks[i].timeStepsSinceLastHit++;
 
             let tank = this.tanks[i]
             let nSteps = 0
@@ -439,6 +466,7 @@ class Tank {
         this.health = 100;
         this.material = material;
         this.showTrace = false;
+        this.timeStepsSinceLastHit = 100;
     }
 }
 
