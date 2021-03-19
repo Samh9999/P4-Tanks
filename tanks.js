@@ -45,6 +45,11 @@ export class Tanks extends Scene {
                  color: hex_color("#fff09c"), //color: hex_color("#ffffff"),
                  //texture: new Texture("assets/text.png", "LINEAR_MIPMAP_LINEAR")
                  }),
+            barrier: new Material(phong,
+                 {ambient: 0.2, diffusivity: 1, specularity: 0, 
+                 color: hex_color("#808080"), //color: hex_color("#ffffff"),
+                 //texture: new Texture("assets/text.png", "LINEAR_MIPMAP_LINEAR")
+                 }),
             sky: new Material(new Textured_Phong(),
                  {ambient: 1, diffusivity: 1, specularity: 0, 
                  color: hex_color("#000000"),
@@ -137,14 +142,14 @@ export class Tanks extends Scene {
             }
         });
         this.key_triggered_button("east", ["l"], () => {
-            if(this.tanks[this.currentTank].tankY > -35){
+            if(this.tanks[this.currentTank].tankY > -35 && !(this.tanks[this.currentTank].tankY-1 < 3 && this.tanks[this.currentTank].tankY-1 > -3)){
                 this.tanks[this.currentTank].tankY--;
                 console.log(this.tanks[this.currentTank].tankX + "," + this.tanks[this.currentTank].tankY);
 
             }
         });
         this.key_triggered_button("west", ["j"], () => {
-            if(this.tanks[this.currentTank].tankY < 35){
+            if(this.tanks[this.currentTank].tankY < 35 && !(this.tanks[this.currentTank].tankY+1 < 3 && this.tanks[this.currentTank].tankY+1 > -3)){
                 this.tanks[this.currentTank].tankY++;
                 console.log(this.tanks[this.currentTank].tankX + "," + this.tanks[this.currentTank].tankY);
             }
@@ -228,18 +233,23 @@ export class Tanks extends Scene {
         let leftWall = Mat4.identity().times(Mat4.scale(50, 1, 40)).times(
             Mat4.translation(0, -40.5, 0.9));
         this.shapes.cube.draw(context, program_state, leftWall, this.materials.sky);
+        let barrier = Mat4.identity().times(Mat4.scale(80,1,2));
+        this.shapes.cube.draw(context, program_state, barrier, this.materials.barrier)
 
 
         for(var i = 0; i < this.projectiles.length; i++){
-            console.log(this.projectiles);
-            console.log(i);
+            //console.log(this.projectiles);
+            //console.log(i);
             let projectile = this.projectiles[i];
             projectile.updatePosition(dt);
             let z = projectile.position[2][3];
             let exploded = false;
+            let x = projectile.position[0][3];
+            let y = projectile.position[1][3];
+            //console.log(x)
+            //console.log(y)
+            //console.log(z)
             if(projectile.position[2][3] <= -1) {
-                let x = projectile.position[0][3];
-                let y = projectile.position[1][3];
                 exploded = true;
                 this.explosions.push(new Explosion(x, y, -1, projectile.radius, 0.05, projectile.color));
                 for(var j = 0; j < this.tanks.length; j++){
@@ -257,17 +267,20 @@ export class Tanks extends Scene {
                 }
                 this.projectiles.splice(i, 1);
                 i--;
+            } else if (z <= 2.5 && y < 1 && y > -1) {
+                this.explosions.push(new Explosion(x, y, z, projectile.radius, 0.05, projectile.color));
+                this.projectiles.splice(i, 1);
+                exploded = true;
+                //i--;
             } else if (z <= 2 && exploded === false){
-                let x = projectile.position[0][3];
-                let y = projectile.position[1][3];
                 for(var j = 0; j < this.tanks.length; j++){
                     if (projectile.tankFiredFrom === j && projectile.timeStepsSincxeCreation < 5){
                         continue;
                     }
                     let dx = Math.abs(x - this.tanks[j].tankX);
                     let dy = Math.abs(y - this.tanks[j].tankY);
-                    console.log(dx)
-                    console.log(dy)
+                    //console.log(dx)
+                    //console.log(dy)
                     let distance = Math.sqrt((dx*dx)+(dy*dy));
                     if (z <= 2 && distance <= 2) {
                         console.log("yo");
