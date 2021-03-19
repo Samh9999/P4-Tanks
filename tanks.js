@@ -29,6 +29,9 @@ export class Tanks extends Scene {
         this.materials = {
             projectile: new Material(phong,
                 {ambient: .2, diffusivity: .8, specularity: .5}),
+            tracer: new Material(phong,
+                {ambient: .2, diffusivity: .8, specularity: .5,
+                color : hex_color("#ffffff")}),
             tank_green: new Material(new Textured_Phong(),
                 {ambient: .3, diffusivity: .8, specularity: .8, color: hex_color("#006326"),
                 texture: new Texture("assets/camo_green.jpg", "LINEAR_MIPMAP_LINEAR")}),
@@ -55,8 +58,10 @@ export class Tanks extends Scene {
         };
 
         this.projectiles = [];
-        this.tanks = [new Tank(-10, 20, -Math.PI/2, Math.PI/3, this.materials.tank_green), new Tank(-10, -20, Math.PI/2, Math.PI/3, this.materials.tank_blue)];
+        this.tanks = [new Tank(-10, 20, -Math.PI/2, Math.PI/3, this.materials.tank_green), 
+                        new Tank(-10, -20, Math.PI/2, Math.PI/3, this.materials.tank_blue)];
         this.currentTank = 0;
+
         this.explosions = [];
 
         //this.tankX = 0;
@@ -168,6 +173,10 @@ export class Tanks extends Scene {
            }
        });
        this.new_line();
+       this.key_triggered_button("Toggle trace", ["t"], () => {
+           this.tanks[this.currentTank].showTrace = !this.tanks[this.currentTank].showTrace;
+       });
+       this.new_line();
        this.key_triggered_button("Power Down", ["-"], () => {
            if(this.tanks[this.currentTank].power > 0){
                 this.tanks[this.currentTank].power--;              
@@ -208,7 +217,7 @@ export class Tanks extends Scene {
         program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 1000)];
 
         let groundMatrix = Mat4.identity().times(Mat4.scale(50, 40, 1)).times(
-            Mat4.translation(0, 0, -3));
+            Mat4.translation(0, 0, -2));
         this.shapes.cube.draw(context, program_state, groundMatrix, this.materials.ground);
         let backWallMatrix = Mat4.identity().times(Mat4.scale(1, 40, 40)).times(
             Mat4.translation(20.5, 0, 0.9));
@@ -228,14 +237,14 @@ export class Tanks extends Scene {
             projectile.updatePosition(dt);
             let z = projectile.position[2][3];
             let exploded = false;
-            if(projectile.position[2][3] <= -2) {
+            if(projectile.position[2][3] <= -1) {
                 let x = projectile.position[0][3];
                 let y = projectile.position[1][3];
                 exploded = true;
-                this.explosions.push(new Explosion(x, y, -2, projectile.radius, 0.05, projectile.color));
+                this.explosions.push(new Explosion(x, y, -1, projectile.radius, 0.05, projectile.color));
                 for(var j = 0; j < this.tanks.length; j++){
-                    let dx = x - this.tanks[j].tankX;
-                    let dy = y - this.tanks[j].tankY;
+                    let dx = Math.abs(x - this.tanks[j].tankX);
+                    let dy = Math.abs(y - this.tanks[j].tankY);
                     let distance = Math.sqrt((dx*dx)+(dy*dy));
                     //console.log(this.tanks[j])
                     //console.log("pxy: " + x + "," + y);
@@ -323,6 +332,34 @@ export class Tanks extends Scene {
             this.shapes.sphere.draw(context, program_state, turretFinal, this.tanks[i].material);
             this.shapes.cube.draw(context, program_state, tankFinal, this.tanks[i].material);
             this.shapes.cube.draw(context, program_state, barrelFinal, this.tanks[i].material);
+
+            let tank = this.tanks[i]
+            let nSteps = 0
+            if(i == this.currentTank){
+                nSteps = 6;
+                if(tank.showTrace){
+                    nSteps = 100;
+                }
+            }
+            let verticle_angle = (Math.PI/2) - tank.barrelAngle;
+            let tracePosition = Mat4.identity().times(Mat4.scale(0.25, 0.25, 0.25)).
+                    times(Mat4.translation(tank.tankX*4, tank.tankY*4, 4.4)).
+                    times(Mat4.translation(Math.cos(verticle_angle)*Math.cos(tank.turretAngle)*9.6, Math.cos(verticle_angle)*Math.sin(tank.turretAngle)*9.6, Math.sin(verticle_angle)*9.6));
+            let z_velocity = Math.sin(verticle_angle)*tank.power;
+            let x_velocity = Math.cos(verticle_angle)*Math.cos(tank.turretAngle)*tank.power;
+            let y_velocity = Math.cos(verticle_angle)*Math.sin(tank.turretAngle)*tank.power;
+            let timeStep = 0.1;
+            for(var j = 0; j < nSteps; j++){
+                let dx = 4*timeStep*x_velocity;
+                let dy = 4*timeStep*y_velocity;
+                let dz = 4*timeStep*z_velocity;
+                tracePosition = tracePosition.times(Mat4.translation(dx, dy, dz));
+                z_velocity = z_velocity - (timeStep*9.81);
+                if(tracePosition[2][3] <= -1){
+                    break;
+                }
+                this.shapes.sphere.draw(context, program_state, tracePosition, this.materials.tracer)
+            }
         }
 
         for(var i = 0; i < this.tanks.length; i++){
@@ -339,22 +376,15 @@ export class Tanks extends Scene {
 
 class Projectile {
     constructor(tankFiredFrom,tankX, tankY, initial_velocity, projectileType, flat_angle, verticle_angle){
-        console.log(verticle_angle)
         this.tankFiredFrom = tankFiredFrom;
         this.timeStepsSinceCreation = 0;
         verticle_angle = (Math.PI/2) - verticle_angle;
-        console.log(verticle_angle)
         this.position = Mat4.identity().times(Mat4.scale(0.5, 0.5, 0.5)).
             times(Mat4.translation(tankX*2, tankY*2, 2.2)).
             times(Mat4.translation(Math.cos(verticle_angle)*Math.cos(flat_angle)*4.8, Math.cos(verticle_angle)*Math.sin(flat_angle)*4.8, Math.sin(verticle_angle)*4.8));
         this.z_velocity = Math.sin(verticle_angle)*initial_velocity;
         this.x_velocity = Math.cos(verticle_angle)*Math.cos(flat_angle)*initial_velocity;
         this.y_velocity = Math.cos(verticle_angle)*Math.sin(flat_angle)*initial_velocity;
-        /*console.log(Math.cos(verticle_angle))
-        console.log(Math.sin(verticle_angle))
-        console.log("X_V: " + this.x_velocity)
-        console.log("Y_V: " + this.y_velocity)
-        console.log("Z_V: " + this.z_velocity)*/
      
 
         if(projectileType == 1) {
@@ -395,6 +425,7 @@ class Tank {
         this.power = 15;
         this.health = 100;
         this.material = material;
+        this.showTrace = false;
     }
 }
 
