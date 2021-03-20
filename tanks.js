@@ -131,24 +131,22 @@ export class Tanks extends Scene {
             }
         })
         this.new_line()
-        this.key_triggered_button("north", ["i"], () => { 
-            if(this.tanks[this.currentTank].tankX < 13){
-                this.tanks[this.currentTank].tankX++;
-                console.log(this.tanks[this.currentTank].tankX + "," + this.tanks[this.currentTank].tankY);
-            }
+        this.key_triggered_button("north", ["i"], () => {
+                if(this.tanks[this.currentTank].tankX < 13){
+                    this.tanks[this.currentTank].tankX++;
+                    console.log(this.tanks[this.currentTank].tankX + "," + this.tanks[this.currentTank].tankY);
+                }
         });
         this.key_triggered_button("south", ["k"], () => {
-            if(this.tanks[this.currentTank].tankX > -33){
-                this.tanks[this.currentTank].tankX--;
-                console.log(this.tanks[this.currentTank].tankX + "," + this.tanks[this.currentTank].tankY);;
-                                
-            }
+                if(this.tanks[this.currentTank].tankX > -33){
+                    this.tanks[this.currentTank].tankX--;
+                    console.log(this.tanks[this.currentTank].tankX + "," + this.tanks[this.currentTank].tankY);;            
+                } 
         });
         this.key_triggered_button("east", ["l"], () => {
             if(this.tanks[this.currentTank].tankY > -35 && !(this.tanks[this.currentTank].tankY-1 < 3 && this.tanks[this.currentTank].tankY-1 > -3)){
                 this.tanks[this.currentTank].tankY--;
                 console.log(this.tanks[this.currentTank].tankX + "," + this.tanks[this.currentTank].tankY);
-
             }
         });
         this.key_triggered_button("west", ["j"], () => {
@@ -220,7 +218,7 @@ export class Tanks extends Scene {
         let tank = this.tanks[this.currentTank];
         let dy = Math.sin(tank.turretAngle);
         let dx = Math.cos(tank.turretAngle);
-        this.tankView = Mat4.look_at(vec3(tank.tankX - (10*dx), tank.tankY - (10*dy), 4), vec3(tank.tankX, tank.tankY, 0), vec3(0, 0, 1))
+        this.tankView = Mat4.look_at(vec3(tank.tankX - (10*dx), tank.tankY - (10*dy), 4), vec3(tank.tankX, tank.tankY, 3), vec3(0, 0, 1))
 
         if (this.inTankView){
             program_state.set_camera(this.tankView);
@@ -240,18 +238,24 @@ export class Tanks extends Scene {
         const light_position = Mat4.identity().times(vec4(0, 0, 30, 0));
         program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 1000)];
 
-        let groundMatrix = Mat4.identity().times(Mat4.scale(50, 40, 1)).times(
+        let groundMatrix = Mat4.identity().times(Mat4.scale(50, 60, 1)).times(
             Mat4.translation(0, 0, -2));
         this.shapes.cube.draw(context, program_state, groundMatrix, this.materials.ground);
-        let backWallMatrix = Mat4.identity().times(Mat4.scale(1, 40, 40)).times(
+        let backWallMatrix = Mat4.identity().times(Mat4.scale(1, 60, 40)).times(
             Mat4.translation(20.5, 0, 0.9));
         this.shapes.cube.draw(context, program_state, backWallMatrix, this.materials.backSky);
-        let rightWall = Mat4.identity().times(Mat4.scale(50, 1, 40)).times(
-            Mat4.translation(0, 40.5, 0.9));
+        let rightWall = Mat4.identity().times(Mat4.scale(80, 1, 40)).times(
+            Mat4.translation(0, 45.5, 0.9));
         this.shapes.cube.draw(context, program_state, rightWall, this.materials.sky);
-        let leftWall = Mat4.identity().times(Mat4.scale(50, 1, 40)).times(
-            Mat4.translation(0, -40.5, 0.9));
+        let leftWall = Mat4.identity().times(Mat4.scale(80, 1, 40)).times(
+            Mat4.translation(0, -45.5, 0.9));
         this.shapes.cube.draw(context, program_state, leftWall, this.materials.sky);
+        let frontWall = Mat4.identity().times(Mat4.scale(1, 40, 40)).times(
+            Mat4.translation(-40.5, 0, 0.9));
+        if(this.inTankView){
+            this.shapes.cube.draw(context, program_state, frontWall, this.materials.sky);
+        }
+
         let barrier = Mat4.identity().times(Mat4.scale(80,1,2));
         this.shapes.cube.draw(context, program_state, barrier, this.materials.barrier)
 
@@ -395,6 +399,9 @@ export class Tanks extends Scene {
                 let dz = 4*timeStep*z_velocity;
                 tracePosition = tracePosition.times(Mat4.translation(dx, dy, dz));
                 z_velocity = z_velocity - (timeStep*9.81);
+                if(tracePosition[1][3] >= -1 && tracePosition[1][3] <= 1 && tracePosition[2][3] <= 2.7){
+                    break;
+                }
                 if(tracePosition[2][3] <= -1){
                     break;
                 }
